@@ -31,9 +31,9 @@ class NotificationController extends Controller
         }
     }
 
-    public function notification(Request $request){
+    public function notificationByPlugin(Request $request){
         try{
-            $fcmTokens = User::whereNotNull('mobile_token')->pluck('mobile_token')->toArray();
+            $fcmTokens = User::whereNotNull('mobile_token')->where('name', 'Mahmoud')->pluck('mobile_token')->toArray();
 
             Larafirebase::withTitle($request->title)
                 ->withBody($request->body)
@@ -45,5 +45,38 @@ class NotificationController extends Controller
             report($e);
             return redirect()->back()->with('error','Something goes wrong while sending notification.');
         }
+    }
+
+    public function notification(Request $request)
+    {
+        $firebaseToken = User::whereNotNull('mobile_token')->pluck('mobile_token')->toArray();
+        $SERVER_API_KEY = env('FIREBASE_SERVER_KEY');
+
+        $data = [
+            "registration_ids" => $firebaseToken,
+            "notification" => [
+                "title" => $request->title,
+                "body" => $request->body,
+            ]
+        ];
+
+        $dataString = json_encode($data);
+
+        $headers = [
+            'Authorization: key=' . $SERVER_API_KEY,
+            'Content-Type: application/json',
+        ];
+
+        $ch = curl_init();
+
+        curl_setopt($ch, CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $dataString);
+        $response = curl_exec($ch);
+
+        return back()->with('success','Notification Sent Successfully!!');
     }
 }
